@@ -114,24 +114,53 @@ export function Avatar(props) {
   const { message, onMessagePlayed, chat, setCurrentAudio } = useChat();
 
   const [lipsync, setLipsync] = useState();
+  const [currentMessageId, setCurrentMessageId] = useState(0);
 
   useEffect(() => {
-    console.log(message);
+    console.log("=== AVATAR MESSAGE UPDATE ===");
+    console.log("Current message:", message);
+    
     if (!message) {
+      console.log("No message - setting Idle animation");
       setAnimation("Idle");
       return;
     }
+    
+    console.log("Setting animation:", message.animation);
+    console.log("Setting facial expression:", message.facialExpression);
+    
     setAnimation(message.animation);
     setFacialExpression(message.facialExpression);
     setLipsync(message.lipsync);
-    const audio = new Audio("data:audio/mp3;base64," + message.audio);
-    audio.play();
-    setAudio(audio);
-    setCurrentAudio(audio); // Expose audio to subtitle component
-    audio.onended = () => {
-      setCurrentAudio(null);
-      onMessagePlayed();
-    };
+    
+    // Only play audio if it exists
+    if (message.audio) {
+      console.log("Playing audio for message:", message.text);
+      
+      // Stop any existing audio
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      
+      const newAudio = new Audio("data:audio/mp3;base64," + message.audio);
+      newAudio.play();
+      setAudio(newAudio);
+      setCurrentAudio(newAudio); // Expose audio to subtitle component
+      newAudio.onended = () => {
+        console.log("Audio ended - calling onMessagePlayed");
+        setCurrentAudio(null);
+        onMessagePlayed();
+      };
+    } else {
+      console.log("No audio - calling onMessagePlayed after delay");
+      // If no audio, just call onMessagePlayed after a short delay
+      setTimeout(() => {
+        console.log("Delay completed - calling onMessagePlayed");
+        onMessagePlayed();
+      }, 1000);
+    }
+    console.log("=== AVATAR MESSAGE UPDATE END ===");
   }, [message]);
 
   const { animations } = useGLTF("/models/animations.glb");

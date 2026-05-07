@@ -33,8 +33,17 @@ const voiceID = "hpp4J3VqNfWAUOO0d1Us";
 
 const app = express();
 app.use(express.json());
-app.use(cors());
-const port = 3000;
+app.use(cors({
+  origin: [
+    'https://libralearn.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+const port = process.env.PORT || 3000;
 const quizSessions = new Map();
 let ragIndex = null;
 
@@ -1400,6 +1409,8 @@ const audioFileToBase64 = async (file) => {
   return data.toString("base64");
 };
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   console.log(`Human Rights Educator Avatar listening on port ${port}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
 });

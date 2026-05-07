@@ -189,7 +189,7 @@ export const UI = ({ hidden, ...props }) => {
       
       if (ragMode) {
         // Use RAG API
-        fetch('http://localhost:3000/ragAsk', {
+        fetch(`${import.meta.env.VITE_API_URL || 'https://libralearn-production.up.railway.app'}/ragAsk`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

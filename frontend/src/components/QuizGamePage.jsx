@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import SideNavbar from "./SideNavbar";
+import { useChat } from "../hooks/useChat";
 
-const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const backendUrl = import.meta.env.VITE_API_URL || "https://libralearn-production.up.railway.app";
 const TOTAL_QUESTIONS = 5;
 
 const QuizGamePage = () => {
+  const { chat, addDirectMessage, forceClearMessages } = useChat();
   const [sessionId, setSessionId] = useState(null);
   const [questionNumber, setQuestionNumber] = useState(1);
   const [question, setQuestion] = useState(null);
@@ -16,6 +18,7 @@ const QuizGamePage = () => {
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
   const [error, setError] = useState("");
   const [quizEnded, setQuizEnded] = useState(false);
+  const [quizFeedback, setQuizFeedback] = useState(""); // Add visual feedback state
 
   const progressPercent = useMemo(() => {
     return Math.round((questionNumber / TOTAL_QUESTIONS) * 100);
@@ -58,6 +61,91 @@ const QuizGamePage = () => {
     });
   }, []);
 
+  const handleQuizFeedback = async (feedbackMessage) => {
+    try {
+      console.log("=== QUIZ FEEDBACK START ===");
+      console.log("Feedback message:", feedbackMessage);
+      
+      // Set visual feedback immediately
+      setQuizFeedback(feedbackMessage);
+      
+      // Clear any existing messages first
+      console.log("Clearing any existing messages...");
+      forceClearMessages();
+      
+      // Wait a moment
+      setTimeout(async () => {
+        console.log("Starting audio generation...");
+        
+        // Test backend first
+        try {
+          const testResponse = await fetch(`${backendUrl}/test`);
+          if (testResponse.ok) {
+            const testData = await testResponse.json();
+            console.log("Backend test:", testData);
+          } else {
+            console.log("Backend test failed");
+            return;
+          }
+        } catch (testError) {
+          console.log("Backend test error:", testError);
+          return;
+        }
+        
+        // Generate audio
+        console.log("Calling text-to-speech endpoint...");
+        const response = await fetch(`${backendUrl}/text-to-speech`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ 
+            text: feedbackMessage,
+            voiceId: "hpp4J3VqNfWAUOO0d1Us"
+          }),
+        });
+
+        console.log("Response status:", response.status);
+        
+        if (response.ok) {
+          const audioData = await response.json();
+          console.log("Audio data received:", audioData);
+          
+          if (audioData.audio) {
+            console.log("Adding avatar message to queue...");
+            // Add to message queue instead of setting directly
+            addDirectMessage({
+              text: feedbackMessage,
+              audio: audioData.audio,
+              lipsync: audioData.lipsync || null,
+              facialExpression: "smile",
+              animation: "Talking_1"
+            });
+            console.log("=== QUIZ FEEDBACK SUCCESS ===");
+            
+            // Force clear after 10 seconds to prevent infinite loop
+            setTimeout(() => {
+              console.log("Timeout reached - force clearing messages");
+              forceClearMessages();
+              setQuizFeedback(""); // Clear visual feedback too
+            }, 10000);
+            
+          } else {
+            console.log("No audio in response");
+          }
+        } else {
+          const errorText = await response.text();
+          console.log("Request failed:", errorText);
+        }
+        
+      }, 500); // 500ms delay
+      
+    } catch (error) {
+      console.error("Quiz feedback error:", error);
+      console.log("=== QUIZ FEEDBACK ERROR ===");
+    }
+  };
+
   const handleOptionClick = async (optionKey) => {
     if (!question || isSubmittingAnswer || feedback) {
       return;
@@ -88,8 +176,17 @@ const QuizGamePage = () => {
       }
 
       const result = await response.json();
+      console.log("Quiz result:", result);
       if (result?.evaluation === "Correct") {
         setCorrectCount((prev) => prev + 1);
+        
+        // Create quiz feedback message
+        const correctAnswerText = question.options[question.correctAnswer];
+        const feedbackMessage = `Correct! The answer is: ${correctAnswerText}. ${result.explanation || ''}`;
+        
+        console.log("About to send feedback:", feedbackMessage);
+        // Generate audio and set avatar message
+        handleQuizFeedback(feedbackMessage);
       }
       setFeedback(result);
 
@@ -139,6 +236,14 @@ const QuizGamePage = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <SideNavbar />
       <div className="max-w-3xl mx-auto px-4 pt-8 pb-16 lg:pl-72">
+        {/* Visual Feedback Display */}
+        {quizFeedback && (
+          <div className="mb-4 p-4 bg-green-100 border border-green-300 rounded-lg">
+            <p className="text-green-800 font-semibold">Avatar Feedback:</p>
+            <p className="text-green-700">{quizFeedback}</p>
+          </div>
+        )}
+        
         <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">

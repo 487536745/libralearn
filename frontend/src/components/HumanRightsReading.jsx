@@ -103,7 +103,7 @@ const HumanRightsReading = () => {
     ]
   };
 
-  const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+  const backendUrl = import.meta.env.VITE_API_URL || "https://libralearn-production.up.railway.app";
 
   const getPdfSourceId = (pdfPath) => {
     const fileName = pdfPath.split('/').pop() || '';

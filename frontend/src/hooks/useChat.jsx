@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase/firebase";
 
-const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const backendUrl = import.meta.env.VITE_API_URL || "https://libralearn-production.up.railway.app";
 
 const ChatContext = createContext();
 
@@ -110,15 +110,55 @@ export const ChatProvider = ({ children }) => {
   const [cameraZoomed, setCameraZoomed] = useState(true);
   const [currentAudio, setCurrentAudio] = useState(null);
   const onMessagePlayed = () => {
-    setMessages((messages) => messages.slice(1));
+    console.log("=== ON MESSAGE PLAYED ===");
+    console.log("Messages before:", messages.length, messages);
+    console.log("Current message object:", message);
+    
+    setMessages((messages) => {
+      const newMessages = messages.slice(1);
+      console.log("Messages after slice:", newMessages.length, newMessages);
+      
+      // Check if we're in a loop
+      if (newMessages.length === messages.length) {
+        console.log("WARNING: Message queue length didn't change - potential loop!");
+      }
+      
+      return newMessages;
+    });
+    console.log("=== ON MESSAGE PLAYED END ===");
+  };
+  
+  // Function to add a direct message to the queue
+  const addDirectMessage = (message) => {
+    console.log("=== ADD DIRECT MESSAGE ===");
+    console.log("Adding message:", message);
+    setMessages((prevMessages) => {
+      const newMessages = [...prevMessages, message];
+      console.log("New messages queue:", newMessages.length, newMessages);
+      return newMessages;
+    });
+    console.log("=== ADD DIRECT MESSAGE END ===");
+  };
+  
+  // Function to force clear all messages
+  const forceClearMessages = () => {
+    console.log("=== FORCE CLEAR MESSAGES ===");
+    setMessages([]);
+    setMessage(null);
+    console.log("=== FORCE CLEAR MESSAGES END ===");
   };
 
   useEffect(() => {
+    console.log("=== MESSAGE QUEUE UPDATE ===");
+    console.log("Messages in queue:", messages.length, messages);
     if (messages.length > 0) {
+      console.log("Setting current message to:", messages[0]);
       setMessage(messages[0]);
     } else {
+      console.log("No messages in queue - setting message to null");
       setMessage(null);
     }
+    console.log("=== MESSAGE QUEUE UPDATE END ===");
   }, [messages]);
 
   return (
@@ -133,6 +173,9 @@ export const ChatProvider = ({ children }) => {
         currentAudio,
         setCurrentAudio,
         chatHistory,
+        setMessage,
+        addDirectMessage,
+        forceClearMessages,
       }}
     >
       {children}
