@@ -28,8 +28,9 @@ const getPdfParse = async () => {
   }
 };
 
-const elevenLabsApiKey =
-  process.env.ELEVEN_LABS_API_KEY || process.env.ELEVENLABS_API_KEY;
+const elevenLabsApiKey = (
+  process.env.ELEVEN_LABS_API_KEY || process.env.ELEVENLABS_API_KEY || ""
+).trim();
 const voiceID = "hpp4J3VqNfWAUOO0d1Us";
 
 const maskSecretForLogs = (value) => {
@@ -1404,6 +1405,18 @@ app.post("/chat", async (req, res) => {
   if (messages.messages) {
     messages = messages.messages; // ChatGPT is not 100% reliable, sometimes it directly returns an array and sometimes a JSON object with a messages property
   }
+  const sanitizeErrorForLogs = (error) => {
+    const status = error?.response?.status;
+    const statusText = error?.response?.statusText;
+    const code = error?.code;
+    const message = error?.message;
+    const providerMessage =
+      error?.response?.data?.detail ||
+      error?.response?.data?.message ||
+      error?.response?.data?.error;
+    return { status, statusText, code, message, providerMessage };
+  };
+
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
     // generate audio file
@@ -1416,7 +1429,10 @@ app.post("/chat", async (req, res) => {
       message.audio = await audioFileToBase64(fileName);
       message.lipsync = await readJsonTranscript(`audios/message_${i}.json`);
     } catch (error) {
-      console.error(`Audio/lipsync generation failed for message ${i}:`, error.message);
+      console.error(
+        `Audio/lipsync generation failed for message ${i}:`,
+        sanitizeErrorForLogs(error)
+      );
       // Keep chat response alive even if ffmpeg/rhubarb is unavailable in production.
       message.audio = null;
       message.lipsync = buildFallbackLipsync(textInput);
