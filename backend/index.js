@@ -1245,6 +1245,18 @@ const lipSyncMessage = async (message) => {
   console.log(`Lip sync done in ${new Date().getTime() - time}ms`);
 };
 
+const buildFallbackLipsync = (text = "") => {
+  const words = String(text).trim().split(/\s+/).filter(Boolean);
+  const cues = [];
+  const total = Math.max(0.8, words.length * 0.22);
+  for (let i = 0; i < words.length; i++) {
+    const start = Number((i * 0.22).toFixed(2));
+    const end = Number(Math.min(total, start + 0.18).toFixed(2));
+    cues.push({ start, end, value: "A" });
+  }
+  return { metadata: { duration: total }, mouthCues: cues };
+};
+
 app.post("/chat", async (req, res) => {
   const userMessage = req.body.message;
   const language = req.body.language || 'en'; // Get language from frontend
@@ -1397,11 +1409,18 @@ app.post("/chat", async (req, res) => {
     // generate audio file
     const fileName = `audios/message_${i}.mp3`; // The name of your audio file
     const textInput = message.text; // The text you wish to convert to speech
-    await voice.textToSpeech(elevenLabsApiKey, voiceID, fileName, textInput);
-    // generate lipsync
-    await lipSyncMessage(i);
-    message.audio = await audioFileToBase64(fileName);
-    message.lipsync = await readJsonTranscript(`audios/message_${i}.json`);
+    try {
+      await voice.textToSpeech(elevenLabsApiKey, voiceID, fileName, textInput);
+      // generate lipsync
+      await lipSyncMessage(i);
+      message.audio = await audioFileToBase64(fileName);
+      message.lipsync = await readJsonTranscript(`audios/message_${i}.json`);
+    } catch (error) {
+      console.error(`Audio/lipsync generation failed for message ${i}:`, error.message);
+      // Keep chat response alive even if ffmpeg/rhubarb is unavailable in production.
+      message.audio = null;
+      message.lipsync = buildFallbackLipsync(textInput);
+    }
   }
 
   res.send({ messages });
