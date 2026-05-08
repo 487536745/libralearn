@@ -28,8 +28,16 @@ const getPdfParse = async () => {
   }
 };
 
-const elevenLabsApiKey = process.env.ELEVEN_LABS_API_KEY;
+const elevenLabsApiKey =
+  process.env.ELEVEN_LABS_API_KEY || process.env.ELEVENLABS_API_KEY;
 const voiceID = "hpp4J3VqNfWAUOO0d1Us";
+
+const maskSecretForLogs = (value) => {
+  if (!value || typeof value !== "string") return "missing";
+  const trimmed = value.trim();
+  if (trimmed.length <= 8) return `${trimmed.slice(0, 2)}****`;
+  return `${trimmed.slice(0, 4)}...${trimmed.slice(-4)}`;
+};
 
 const app = express();
 app.use(express.json());
@@ -1413,4 +1421,6 @@ app.listen(port, '0.0.0.0', () => {
   console.log(`Human Rights Educator Avatar listening on port ${port}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
+  console.log(`OPENAI_API_KEY: ${openai.apiKey === "-" ? "missing" : "present"} (${maskSecretForLogs(openai.apiKey === "-" ? "" : openai.apiKey)})`);
+  console.log(`ELEVEN_LABS_API_KEY: ${elevenLabsApiKey ? "present" : "missing"} (${maskSecretForLogs(elevenLabsApiKey)})`);
 });
